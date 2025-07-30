@@ -12,3 +12,9 @@ target_link_libraries(VulkanTutorial PRIVATE
 	Vulkan::Vulkan
 	glfw
 )
+
+# Enable warnings
+target_compile_options(VulkanTutorial PRIVATE
+	$<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>
+	$<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
+)
