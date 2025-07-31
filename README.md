@@ -28,7 +28,11 @@ https://vulkan-tutorial.com
 Clone the repository and initialize submodules:
 ```
 git clone https://github.com/MTurnhout/vulkan-tutorial.com.git
+```
+```
 cd vulkan-tutorial.com
+```
+```
 git submodule update --init --recursive
 ```
 
@@ -36,5 +40,7 @@ git submodule update --init --recursive
 Generate and build Visual Studio solution:
 ```cmd
 cmake -B ./build -G "Visual Studio 17 2022" -A x64
+```
+```cmd
 cmake --build ./build --config Release
 ```
