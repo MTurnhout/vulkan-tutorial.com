@@ -397,8 +397,8 @@ private:
         return vk::PresentModeKHR::eFifo;
     }
 
-    [[nodiscard]] vk::Extent2D ChooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities
-    ) const
+    [[nodiscard]] vk::Extent2D
+    ChooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities) const
     {
         if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
         {
@@ -424,8 +424,8 @@ private:
         return actualExtent;
     }
 
-    [[nodiscard]] SwapChainSupportDetails QuerySwapChainSupport(const vk::PhysicalDevice device
-    ) const
+    [[nodiscard]] SwapChainSupportDetails
+    QuerySwapChainSupport(const vk::PhysicalDevice device) const
     {
         SwapChainSupportDetails details{};
         details.capabilities = device.getSurfaceCapabilitiesKHR(_surface);
