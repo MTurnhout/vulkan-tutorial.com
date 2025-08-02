@@ -1,9 +1,23 @@
 ---
 Language: Cpp
 Standard: Latest
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+BreakBeforeBraces: Allman
 ColumnLimit: 100
-
 AlignAfterOpenBracket: BlockIndent
-BinPackArguments: true
-BinPackParameters: OnePerLine
-SortIncludes: CaseInsensitive
+BinPackParameters: false
+AccessModifierOffset: -4
+NamespaceIndentation: All
+PointerAlignment: Right
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: true
+AllowShortFunctionsOnASingleLine: Inline
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<.*'
+    Priority: 1
+  - Regex: '^".*'
+    Priority: 2

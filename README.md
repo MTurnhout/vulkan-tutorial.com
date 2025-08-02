@@ -44,3 +44,10 @@ cmake -B ./build -G "Visual Studio 17 2022" -A x64
 ```cmd
 cmake --build ./build --config Release
 ```
+
+## Other
+
+### Format
+```cmd
+cmake --build build --target format
+```

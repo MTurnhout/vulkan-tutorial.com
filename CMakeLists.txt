@@ -25,3 +25,25 @@ add_subdirectory(src/VulkanTutorial)
 
 # Set startup project (Visual Studio)
 set_property(DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT VulkanTutorial)
+
+# Find ClangFormat
+find_program(CLANG_FORMAT_EXECUTABLE NAMES clang-format)
+if (CLANG_FORMAT_EXECUTABLE)
+	message(STATUS "ClangFormat found: ${CLANG_FORMAT_EXECUTABLE}")
+
+	# Gather all source files across the project
+	file(GLOB_RECURSE SOURCES
+		"${CMAKE_SOURCE_DIR}/src/*.cpp"
+		"${CMAKE_SOURCE_DIR}/src/*.h"
+		"${CMAKE_SOURCE_DIR}/src/*.hpp"
+	)
+
+	# Add custom target for formatting
+	add_custom_target(format
+		COMMAND ${CLANG_FORMAT_EXECUTABLE} -i --style=file ${SOURCES}
+		COMMENT "Running ClangFormat on all source files"
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+	)
+else()
+	message(WARNING "ClangFormat not found. Formatting target will not be available.")
+endif()
