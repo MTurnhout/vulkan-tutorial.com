@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -14,15 +15,15 @@
 constexpr uint32_t Width = 800;
 constexpr uint32_t Height = 600;
 
-static const std::vector<const char *> validationLayers =
+static const std::vector<const char *> ValidationLayers =
 #ifdef NDEBUG
     {};
 #else
     {"VK_LAYER_KHRONOS_validation"};
 #endif
-static const bool enableValidationLayers = !validationLayers.empty();
+static const bool EnableValidationLayers = !ValidationLayers.empty();
 
-const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+const std::vector<const char *> DeviceExtensions = { vk::KHRSwapchainExtensionName };
 
 struct QueueFamilyIndices
 {
@@ -73,6 +74,10 @@ private:
     vk::Extent2D _swapChainExtent = {};
     std::vector<vk::ImageView> _swapChainImageViews;
 
+    vk::RenderPass _renderPass = nullptr;
+    vk::PipelineLayout _pipelineLayout = nullptr;
+    vk::Pipeline _graphicsPipeline = nullptr;
+
     void InitWindow()
     {
         if (!glfwInit())
@@ -104,6 +109,8 @@ private:
         CreateLogicalDevice();
         CreateSwapChain();
         CreateImageViews();
+        CreateRenderPass();
+        CreateGraphicsPipelines();
     }
 
     void MainLoop() const
@@ -116,6 +123,10 @@ private:
 
     void Cleanup() const
     {
+        _device.destroyPipeline(_graphicsPipeline);
+        _device.destroyPipelineLayout(_pipelineLayout);
+        _device.destroyRenderPass(_renderPass);
+
         for (const auto imageView : _swapChainImageViews)
         {
             _device.destroyImageView(imageView);
@@ -124,7 +135,7 @@ private:
         _device.destroySwapchainKHR(_swapChain);
         _device.destroy();
 
-        if (enableValidationLayers)
+        if (EnableValidationLayers)
         {
             _instance.destroyDebugUtilsMessengerEXT(
                 _debugMessenger, nullptr, _dispatchLoaderDynamic
@@ -141,7 +152,7 @@ private:
 
     void CreateInstance()
     {
-        if (enableValidationLayers && !CheckValidationLayerSupport())
+        if (EnableValidationLayers && !CheckValidationLayerSupport())
         {
             throw std::runtime_error("Validation layers requested, but not available!");
         }
@@ -149,10 +160,10 @@ private:
         vk::ApplicationInfo appInfo{};
         appInfo.sType = vk::StructureType::eApplicationInfo;
         appInfo.pApplicationName = "Hello Triangle";
-        appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.applicationVersion = vk::makeApiVersion(1, 0, 0, 0);
         appInfo.pEngineName = "No Engine";
-        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.apiVersion = VK_API_VERSION_1_0;
+        appInfo.engineVersion = vk::makeApiVersion(1, 0, 0, 0);
+        appInfo.apiVersion = vk::ApiVersion10;
 
         const std::vector<const char *> extensions = GetRequiredExtensions();
         if (!CheckRequiredExtensions(extensions))
@@ -166,9 +177,9 @@ private:
         createInfo.setPEnabledExtensionNames(extensions);
 
         vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-        if (enableValidationLayers)
+        if (EnableValidationLayers)
         {
-            createInfo.setPEnabledLayerNames(validationLayers);
+            createInfo.setPEnabledLayerNames(ValidationLayers);
 
             PopulateDebugMessengerCreateInfo(debugCreateInfo);
             createInfo.pNext = &debugCreateInfo;
@@ -201,7 +212,7 @@ private:
 
     void SetupDebugMessenger()
     {
-        if (!enableValidationLayers)
+        if (!EnableValidationLayers)
         {
             return;
         }
@@ -278,12 +289,12 @@ private:
         createInfo.queueCreateInfoCount = 1;
 
         createInfo.pEnabledFeatures = &deviceFeatures;
-        createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-        createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(DeviceExtensions.size());
+        createInfo.ppEnabledExtensionNames = DeviceExtensions.data();
 
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.enabledLayerCount = static_cast<uint32_t>(ValidationLayers.size());
         createInfo.ppEnabledLayerNames =
-            validationLayers.empty() ? nullptr : validationLayers.data();
+            ValidationLayers.empty() ? nullptr : ValidationLayers.data();
 
         _device = _physicalDevice.createDevice(createInfo);
         _device.getQueue(graphicsFamily.value(), 0, &_graphicsQueue);
@@ -366,6 +377,182 @@ private:
 
             _swapChainImageViews[i] = _device.createImageView(createInfo);
         }
+    }
+
+    void CreateRenderPass()
+    {
+        vk::AttachmentDescription colorAttachment{};
+        colorAttachment.format = _swapChainImageFormat;
+        colorAttachment.samples = vk::SampleCountFlagBits::e1;
+        colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+        colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+        colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+        colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+
+        vk::AttachmentReference colorAttachmentReference{};
+        colorAttachmentReference.attachment = 0;
+        colorAttachmentReference.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+        vk::SubpassDescription subpass{};
+        subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentReference;
+
+        vk::RenderPassCreateInfo renderPassInfo{};
+        renderPassInfo.attachmentCount = 1;
+        renderPassInfo.pAttachments = &colorAttachment;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+
+        _renderPass = _device.createRenderPass(renderPassInfo);
+    }
+
+    void CreateGraphicsPipelines()
+    {
+        const auto vertShaderCode = ReadFile("Shaders/shader.vert.spv");
+        const auto fragShaderCode = ReadFile("Shaders/shader.frag.spv");
+
+        const vk::ShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
+        const vk::ShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
+
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo{};
+        vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main";
+
+        vk::PipelineShaderStageCreateInfo fragShaderStageInfo{};
+        fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+
+        vk::PipelineShaderStageCreateInfo shaderStages[] = {
+            vertShaderStageInfo, fragShaderStageInfo
+        };
+
+        vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
+        vertexInputInfo.vertexBindingDescriptionCount = 0;
+        vertexInputInfo.pVertexBindingDescriptions = nullptr;
+        vertexInputInfo.vertexAttributeDescriptionCount = 0;
+        vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+
+        vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
+        inputAssemblyInfo.topology = vk::PrimitiveTopology::eTriangleList;
+        inputAssemblyInfo.primitiveRestartEnable = vk::False;
+
+        vk::Viewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = static_cast<float>(_swapChainExtent.width);
+        viewport.height = static_cast<float>(_swapChainExtent.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        vk::Rect2D scissor{};
+        scissor.offset.x = 0;
+        scissor.offset.y = 0;
+        scissor.extent = _swapChainExtent;
+
+        vk::PipelineViewportStateCreateInfo viewportStateInfo{};
+        viewportStateInfo.viewportCount = 1;
+        viewportStateInfo.pViewports = &viewport;
+        viewportStateInfo.scissorCount = 1;
+        viewportStateInfo.pScissors = &scissor;
+
+        vk::PipelineRasterizationStateCreateInfo rasterizerInfo{};
+        rasterizerInfo.depthClampEnable = vk::False;
+        rasterizerInfo.rasterizerDiscardEnable = vk::False;
+        rasterizerInfo.polygonMode = vk::PolygonMode::eFill;
+        rasterizerInfo.lineWidth = 1.0f;
+        rasterizerInfo.cullMode = vk::CullModeFlagBits::eBack;
+        rasterizerInfo.frontFace = vk::FrontFace::eClockwise;
+        rasterizerInfo.depthBiasEnable = vk::False;
+        rasterizerInfo.depthBiasConstantFactor = 0.0f;
+        rasterizerInfo.depthBiasClamp = 0.0f;
+        rasterizerInfo.depthBiasSlopeFactor = 0.0f;
+
+        vk::PipelineMultisampleStateCreateInfo multisampleInfo{};
+        multisampleInfo.sampleShadingEnable = vk::False;
+        multisampleInfo.rasterizationSamples = vk::SampleCountFlagBits::e1;
+        multisampleInfo.minSampleShading = 1.0f;
+        multisampleInfo.pSampleMask = nullptr;
+        multisampleInfo.alphaToCoverageEnable = vk::False;
+        multisampleInfo.alphaToOneEnable = vk::False;
+
+        vk::PipelineColorBlendAttachmentState colorBlendAttachmentState{};
+        colorBlendAttachmentState.colorWriteMask =
+            vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+            vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+        colorBlendAttachmentState.blendEnable = vk::False;
+        colorBlendAttachmentState.srcColorBlendFactor = vk::BlendFactor::eOne;
+        colorBlendAttachmentState.dstColorBlendFactor = vk::BlendFactor::eZero;
+        colorBlendAttachmentState.colorBlendOp = vk::BlendOp::eAdd;
+        colorBlendAttachmentState.srcAlphaBlendFactor = vk::BlendFactor::eOne;
+        colorBlendAttachmentState.dstAlphaBlendFactor = vk::BlendFactor::eZero;
+        colorBlendAttachmentState.alphaBlendOp = vk::BlendOp::eAdd;
+
+        vk::PipelineColorBlendStateCreateInfo colorBlendingInfo{};
+        colorBlendingInfo.logicOpEnable = vk::False;
+        colorBlendingInfo.logicOp = vk::LogicOp::eCopy;
+        colorBlendingInfo.attachmentCount = 1;
+        colorBlendingInfo.pAttachments = &colorBlendAttachmentState;
+        colorBlendingInfo.blendConstants[0] = 0.0f;
+        colorBlendingInfo.blendConstants[1] = 0.0f;
+        colorBlendingInfo.blendConstants[2] = 0.0f;
+        colorBlendingInfo.blendConstants[3] = 0.0f;
+
+        const std::vector dynamicStates = {
+            vk::DynamicState::eViewport, vk::DynamicState::eScissor
+        };
+
+        vk::PipelineDynamicStateCreateInfo dynamicStateInfo{};
+        dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+        dynamicStateInfo.pDynamicStates = dynamicStates.data();
+
+        vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
+        pipelineLayoutInfo.setLayoutCount = 0;
+        pipelineLayoutInfo.pSetLayouts = nullptr;
+        pipelineLayoutInfo.pushConstantRangeCount = 0;
+        pipelineLayoutInfo.pPushConstantRanges = nullptr;
+
+        _pipelineLayout = _device.createPipelineLayout(pipelineLayoutInfo);
+
+        vk::GraphicsPipelineCreateInfo pipelineInfo{};
+        pipelineInfo.setStages(shaderStages);
+        pipelineInfo.pVertexInputState = &vertexInputInfo;
+        pipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
+        pipelineInfo.pViewportState = &viewportStateInfo;
+        pipelineInfo.pRasterizationState = &rasterizerInfo;
+        pipelineInfo.pMultisampleState = &multisampleInfo;
+        pipelineInfo.pDepthStencilState = nullptr;
+        pipelineInfo.pColorBlendState = &colorBlendingInfo;
+        pipelineInfo.pDynamicState = &dynamicStateInfo;
+        pipelineInfo.layout = _pipelineLayout;
+        pipelineInfo.renderPass = _renderPass;
+        pipelineInfo.subpass = 0;
+        pipelineInfo.basePipelineHandle = nullptr;
+        pipelineInfo.basePipelineIndex = -1;
+
+        auto [result, pipeline] = _device.createGraphicsPipeline(nullptr, pipelineInfo);
+        if (result != vk::Result::eSuccess)
+        {
+            throw std::runtime_error("Failed to create graphics pipeline");
+        }
+
+        _graphicsPipeline = pipeline;
+
+        _device.destroyShaderModule(vertShaderModule);
+        _device.destroyShaderModule(fragShaderModule);
+    }
+
+    [[nodiscard]] vk::ShaderModule CreateShaderModule(const std::vector<char> &code) const
+    {
+        vk::ShaderModuleCreateInfo createInfo{};
+        createInfo.codeSize = code.size();
+        createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+
+        return _device.createShaderModule(createInfo);
     }
 
     static vk::SurfaceFormatKHR
@@ -464,7 +651,7 @@ private:
             device.enumerateDeviceExtensionProperties();
 
         bool requiredExtensionsFound = true;
-        for (const auto &requiredExtension : deviceExtensions)
+        for (const auto &requiredExtension : DeviceExtensions)
         {
             bool found = false;
             for (const auto &extension : availableExtensions)
@@ -523,7 +710,7 @@ private:
         const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
         std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-        if (enableValidationLayers)
+        if (EnableValidationLayers)
         {
             extensions.push_back(vk::EXTDebugUtilsExtensionName);
         }
@@ -563,7 +750,7 @@ private:
         const std::vector<vk::LayerProperties> availableLayers =
             vk::enumerateInstanceLayerProperties();
 
-        for (const char *layerName : validationLayers)
+        for (const char *layerName : ValidationLayers)
         {
             bool layerFound = false;
 
@@ -583,6 +770,32 @@ private:
         }
 
         return true;
+    }
+
+    static std::vector<char> ReadFile(const std::string &filename)
+    {
+        std::ifstream file(filename, std::ios::binary | std::ios::ate);
+        if (!file.is_open())
+        {
+            throw std::runtime_error("Failed to open file: " + filename);
+        }
+
+        const std::streampos fileEndPosition = file.tellg();
+        if (fileEndPosition < 0)
+        {
+            throw std::runtime_error("Failed to determine current read position: " + filename);
+        }
+
+        const auto fileSize = static_cast<std::streamsize>(fileEndPosition);
+        std::vector<char> buffer(static_cast<size_t>(fileSize));
+
+        file.seekg(0, std::ios::beg);
+        if (fileSize > 0 && !file.read(buffer.data(), fileSize))
+        {
+            throw std::runtime_error("Failed to read file: " + filename);
+        }
+
+        return buffer;
     }
 
     static VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(

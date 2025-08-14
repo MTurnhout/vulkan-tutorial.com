@@ -25,6 +25,10 @@ CheckOptions:
     value: CamelCase
   - key: readability-identifier-naming.MemberCase
     value: camelBack
+  - key: readability-identifier-naming.StaticConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: CamelCase
   - key: readability-identifier-naming.PrivateMemberPrefix
     value: _
   - key: readability-identifier-naming.ConstantMemberCase
