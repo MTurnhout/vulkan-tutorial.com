@@ -39,10 +39,10 @@ git submodule update --init --recursive
 ### 2. Build (Windows)
 Generate and build Visual Studio solution:
 ```cmd
-cmake -B ./build -G "Visual Studio 17 2022" -A x64
+cmake --preset=release
 ```
 ```cmd
-cmake --build ./build --config Release
+cmake --build --preset=release
 ```
 
 ## Other
