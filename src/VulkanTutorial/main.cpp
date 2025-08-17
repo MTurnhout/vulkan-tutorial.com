@@ -17,7 +17,7 @@ constexpr uint32_t Height = 600;
 
 constexpr int MaxFramesInFlight = 2;
 
-static const std::vector ValidationLayers =
+static const std::vector<const char *> ValidationLayers =
 #ifdef NDEBUG
     {};
 #else
@@ -25,7 +25,7 @@ static const std::vector ValidationLayers =
 #endif
 static const bool EnableValidationLayers = !ValidationLayers.empty();
 
-const std::vector DeviceExtensions = {vk::KHRSwapchainExtensionName};
+const std::vector<const char *> DeviceExtensions = {vk::KHRSwapchainExtensionName};
 
 struct QueueFamilyIndices
 {
@@ -328,7 +328,7 @@ private:
         auto [graphicsFamily, presentFamily] = FindQueueFamilies(_physicalDevice);
 
         std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-        std::set uniqueQueueFamilies = {
+        std::set<uint32_t> uniqueQueueFamilies = {
             graphicsFamily.value(),
             presentFamily.value(),
         };
@@ -498,8 +498,10 @@ private:
         };
 
         vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
-        // vertexInputInfo.setVertexAttributeDescriptions();
-        // vertexInputInfo.setVertexAttributeDescriptions();
+        // vertexInputInfo.vertexBindingDescriptionCount = 0;
+        // vertexInputInfo.pVertexBindingDescriptions = nullptr;
+        // vertexInputInfo.vertexAttributeDescriptionCount = 0;
+        // vertexInputInfo.pVertexAttributeDescriptions = nullptr;
 
         vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
         inputAssemblyInfo.topology = vk::PrimitiveTopology::eTriangleList;
@@ -570,8 +572,10 @@ private:
         dynamicStateInfo.pDynamicStates = dynamicStates.data();
 
         vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
-        // pipelineLayoutInfo.setSetLayouts();
-        // pipelineLayoutInfo.setPushConstantRanges();
+        // pipelineLayoutInfo.setLayoutCount = 0;
+        // pipelineLayoutInfo.pSetLayouts = nullptr;
+        // pipelineLayoutInfo.pushConstantRangeCount = 0;
+        // pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
         _pipelineLayout = _device.createPipelineLayout(pipelineLayoutInfo);
 
@@ -624,11 +628,11 @@ private:
 
     void CreateCommandPool()
     {
-        const auto [graphicsFamily, presentFamily] = FindQueueFamilies(_physicalDevice);
+        const QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(_physicalDevice);
 
         vk::CommandPoolCreateInfo poolInfo{};
         poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
-        poolInfo.queueFamilyIndex = graphicsFamily.value();
+        poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
         _commandPool = _device.createCommandPool(poolInfo);
     }
@@ -941,7 +945,7 @@ private:
         uint32_t glfwExtensionCount = 0;
         const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-        std::vector extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+        std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
         if (EnableValidationLayers)
         {
             extensions.push_back(vk::EXTDebugUtilsExtensionName);
