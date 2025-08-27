@@ -17,15 +17,15 @@ constexpr uint32_t Height = 600;
 
 constexpr int MaxFramesInFlight = 2;
 
-static const std::vector<const char *> ValidationLayers =
-#ifdef NDEBUG
-    {};
-#else
-    {"VK_LAYER_KHRONOS_validation"};
-#endif
-static const bool EnableValidationLayers = !ValidationLayers.empty();
+const std::vector ValidationLayers = {"VK_LAYER_KHRONOS_validation"};
 
-const std::vector<const char *> DeviceExtensions = {vk::KHRSwapchainExtensionName};
+#ifdef NDEBUG
+constexpr bool EnableValidationLayers = false;
+#else
+constexpr bool EnableValidationLayers = true;
+#endif
+
+const std::vector DeviceExtensions = {vk::KHRSwapchainExtensionName};
 
 struct QueueFamilyIndices
 {
@@ -217,9 +217,12 @@ private:
 
     void CreateInstance()
     {
-        if (EnableValidationLayers && !CheckValidationLayerSupport())
+        if constexpr (EnableValidationLayers)
         {
-            throw std::runtime_error("Validation layers requested, but not available!");
+            if (!CheckValidationLayerSupport())
+            {
+                throw std::runtime_error("Validation layers requested, but not available!");
+            }
         }
 
         vk::ApplicationInfo appInfo{};
@@ -328,7 +331,7 @@ private:
         auto [graphicsFamily, presentFamily] = FindQueueFamilies(_physicalDevice);
 
         std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-        std::set<uint32_t> uniqueQueueFamilies = {
+        std::set uniqueQueueFamilies = {
             graphicsFamily.value(),
             presentFamily.value(),
         };
@@ -498,10 +501,8 @@ private:
         };
 
         vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
-        // vertexInputInfo.vertexBindingDescriptionCount = 0;
-        // vertexInputInfo.pVertexBindingDescriptions = nullptr;
-        // vertexInputInfo.vertexAttributeDescriptionCount = 0;
-        // vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+        // vertexInputInfo.setVertexAttributeDescriptions();
+        // vertexInputInfo.setVertexAttributeDescriptions();
 
         vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
         inputAssemblyInfo.topology = vk::PrimitiveTopology::eTriangleList;
@@ -572,10 +573,8 @@ private:
         dynamicStateInfo.pDynamicStates = dynamicStates.data();
 
         vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
-        // pipelineLayoutInfo.setLayoutCount = 0;
-        // pipelineLayoutInfo.pSetLayouts = nullptr;
-        // pipelineLayoutInfo.pushConstantRangeCount = 0;
-        // pipelineLayoutInfo.pPushConstantRanges = nullptr;
+        // pipelineLayoutInfo.setSetLayouts();
+        // pipelineLayoutInfo.setPushConstantRanges();
 
         _pipelineLayout = _device.createPipelineLayout(pipelineLayoutInfo);
 
@@ -628,11 +627,11 @@ private:
 
     void CreateCommandPool()
     {
-        const QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(_physicalDevice);
+        const auto [graphicsFamily, presentFamily] = FindQueueFamilies(_physicalDevice);
 
         vk::CommandPoolCreateInfo poolInfo{};
         poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
-        poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+        poolInfo.queueFamilyIndex = graphicsFamily.value();
 
         _commandPool = _device.createCommandPool(poolInfo);
     }
@@ -945,7 +944,7 @@ private:
         uint32_t glfwExtensionCount = 0;
         const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-        std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+        std::vector extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
         if (EnableValidationLayers)
         {
             extensions.push_back(vk::EXTDebugUtilsExtensionName);
@@ -1035,8 +1034,8 @@ private:
     }
 
     static VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(
-        vk::DebugUtilsMessageSeverityFlagBitsEXT /*messageSeverity*/,
-        vk::DebugUtilsMessageTypeFlagsEXT /*messageType*/,
+        vk::DebugUtilsMessageSeverityFlagBitsEXT,
+        vk::DebugUtilsMessageTypeFlagsEXT,
         const vk::DebugUtilsMessengerCallbackDataEXT *pCallbackData,
         void * /*pUserData*/
     )
