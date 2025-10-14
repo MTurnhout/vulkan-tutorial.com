@@ -4,7 +4,7 @@ https://vulkan-tutorial.com
 
 ## Project Structure
 - `src/VulkanTutorial/`: Main executable project.
-- `libs/`: Contains GLFW (tag 3.4) and GLM (tag 1.0.1) submodules.
+- `libs/`: Contains GLFW (tag 3.4), GLM (tag 1.0.1) and stb submodules.
 - `.github/workflows/build-and-release.yml`: GitHub Actions workflow for building and releasing on tagged pushes (`v*`).
 
 ## Build Requirements
@@ -13,7 +13,7 @@ https://vulkan-tutorial.com
 - **Vulkan SDK**
   - Download: [LunarG Vulkan SDK](https://vulkan.lunarg.com/)
 - **CMake**
-  - Version: 3.20 or higher
+  - Version: 3.27 or higher
   - Download: [CMake](https://cmake.org/download/)
 
 ### Windows
