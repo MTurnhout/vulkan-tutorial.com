@@ -4,13 +4,13 @@ add_executable(VulkanTutorial
 
 target_include_directories(VulkanTutorial PRIVATE
 	${Vulkan_INCLUDE_DIR}
-	${GLFW_INCLUDE_DIR}
-	${GLM_INCLUDE_DIR}
 )
 
 target_link_libraries(VulkanTutorial PRIVATE
 	Vulkan::Vulkan
 	glfw
+	glm
+	stb
 )
 
 # Enable warnings
@@ -61,3 +61,13 @@ add_custom_target(CompileShaders
 )
 
 add_dependencies(VulkanTutorial CompileShaders)
+
+# Copy Textures
+add_custom_target(COPY_TEXTURES
+	COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+	${CMAKE_CURRENT_SOURCE_DIR}/Textures
+	${CMAKE_BINARY_DIR}/bin/Textures
+	COMMENT "Copying textures to output directory"
+)
+
+add_dependencies(VulkanTutorial COPY_TEXTURES)
