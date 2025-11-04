@@ -18,8 +18,8 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-constexpr uint32_t Width = 800;
-constexpr uint32_t Height = 600;
+constexpr uint32_t Width = 1024;
+constexpr uint32_t Height = 800;
 
 constexpr int MaxFramesInFlight = 2;
 
@@ -55,6 +55,7 @@ struct Vertex
 {
     glm::vec2 pos;
     glm::vec3 color;
+    glm::vec2 texCoord;
 
     static vk::VertexInputBindingDescription GetBindingDescription()
     {
@@ -66,9 +67,9 @@ struct Vertex
         return bindingDescription;
     }
 
-    static std::array<vk::VertexInputAttributeDescription, 2> GetAttributeDescriptions()
+    static std::array<vk::VertexInputAttributeDescription, 3> GetAttributeDescriptions()
     {
-        std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions{};
+        std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
         attributeDescriptions[0].format = vk::Format::eR32G32Sfloat;
@@ -78,6 +79,11 @@ struct Vertex
         attributeDescriptions[1].location = 1;
         attributeDescriptions[1].format = vk::Format::eR32G32B32Sfloat;
         attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+        attributeDescriptions[2].binding = 0;
+        attributeDescriptions[2].location = 2;
+        attributeDescriptions[2].format = vk::Format::eR32G32Sfloat;
+        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
 
         return attributeDescriptions;
     }
@@ -91,10 +97,10 @@ struct UniformBufferObject
 };
 
 const std::vector<Vertex> Vertices = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
 };
 const std::vector<uint16_t> Indices = {0, 1, 2, 2, 3, 0};
 
@@ -176,7 +182,7 @@ private:
         }
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
         _window = glfwCreateWindow(Width, Height, "Vulkan", nullptr, nullptr);
         if (!_window)
@@ -308,6 +314,8 @@ private:
         }
 
         _device.waitIdle();
+
+        CleanupSwapChain();
 
         CreateSwapChain();
         CreateImageViews();
@@ -567,13 +575,24 @@ private:
     {
         vk::DescriptorSetLayoutBinding uboLayoutBinding{};
         uboLayoutBinding.binding = 0;
-        uboLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
         uboLayoutBinding.descriptorCount = 1;
-        uboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+        uboLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
         uboLayoutBinding.pImmutableSamplers = nullptr;
+        uboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+
+        vk::DescriptorSetLayoutBinding samplerLayoutBinding{};
+        samplerLayoutBinding.binding = 1;
+        samplerLayoutBinding.descriptorCount = 1;
+        samplerLayoutBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+        samplerLayoutBinding.pImmutableSamplers = nullptr;
+        samplerLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+
+        std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {
+            uboLayoutBinding, samplerLayoutBinding
+        };
 
         vk::DescriptorSetLayoutCreateInfo layoutInfo{};
-        layoutInfo.setBindings(uboLayoutBinding);
+        layoutInfo.setBindings(bindings);
 
         _descriptorSetLayout = _device.createDescriptorSetLayout(layoutInfo);
     }
@@ -601,7 +620,7 @@ private:
         };
 
         vk::VertexInputBindingDescription bindingDescription = Vertex::GetBindingDescription();
-        std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions =
+        std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions =
             Vertex::GetAttributeDescriptions();
 
         vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
@@ -1115,12 +1134,14 @@ private:
 
     void CreateDescriptorPool()
     {
-        vk::DescriptorPoolSize poolSize{};
-        poolSize.type = vk::DescriptorType::eUniformBuffer;
-        poolSize.descriptorCount = static_cast<uint32_t>(MaxFramesInFlight);
+        std::array<vk::DescriptorPoolSize, 2> poolSizes{};
+        poolSizes[0].type = vk::DescriptorType::eUniformBuffer;
+        poolSizes[0].descriptorCount = static_cast<uint32_t>(MaxFramesInFlight);
+        poolSizes[1].type = vk::DescriptorType::eCombinedImageSampler;
+        poolSizes[1].descriptorCount = static_cast<uint32_t>(MaxFramesInFlight);
 
         vk::DescriptorPoolCreateInfo poolInfo{};
-        poolInfo.setPoolSizes(poolSize);
+        poolInfo.setPoolSizes(poolSizes);
         poolInfo.maxSets = static_cast<uint32_t>(MaxFramesInFlight);
 
         _descriptorPool = _device.createDescriptorPool(poolInfo);
@@ -1144,17 +1165,27 @@ private:
             bufferInfo.offset = 0;
             bufferInfo.range = sizeof(UniformBufferObject);
 
-            vk::WriteDescriptorSet descriptorWrite{};
-            descriptorWrite.dstSet = _descriptorSets[i];
-            descriptorWrite.dstBinding = 0;
-            descriptorWrite.dstArrayElement = 0;
-            descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
-            descriptorWrite.descriptorCount = 1;
-            descriptorWrite.pBufferInfo = &bufferInfo;
-            descriptorWrite.pImageInfo = nullptr;
-            descriptorWrite.pTexelBufferView = nullptr;
+            vk::DescriptorImageInfo imageInfo{};
+            imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            imageInfo.imageView = _textureImageView;
+            imageInfo.sampler = _textureSampler;
 
-            _device.updateDescriptorSets(descriptorWrite, nullptr);
+            std::array<vk::WriteDescriptorSet, 2> descriptorWrites{};
+            descriptorWrites[0].dstSet = _descriptorSets[i];
+            descriptorWrites[0].dstBinding = 0;
+            descriptorWrites[0].dstArrayElement = 0;
+            descriptorWrites[0].descriptorType = vk::DescriptorType::eUniformBuffer;
+            descriptorWrites[0].descriptorCount = 1;
+            descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+            descriptorWrites[1].dstSet = _descriptorSets[i];
+            descriptorWrites[1].dstBinding = 1;
+            descriptorWrites[1].dstArrayElement = 0;
+            descriptorWrites[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
+            descriptorWrites[1].descriptorCount = 1;
+            descriptorWrites[1].pImageInfo = &imageInfo;
+
+            _device.updateDescriptorSets(descriptorWrites, nullptr);
         }
     }
 
