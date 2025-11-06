@@ -2,6 +2,8 @@
 Code following tutorial at:
 https://vulkan-tutorial.com
 
+But using Vulkan-Hpp C++ bindings.
+
 ## Project Structure
 - `src/VulkanTutorial/`: Main executable project.
 - `libs/`: Contains GLFW (tag 3.4), GLM (tag 1.0.1) and stb submodules.
